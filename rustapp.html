@@ -1,0 +1,2116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rust Companion — Raid, Craft & Base Planner</title>
+    <style>
+        :root {
+            --bg-dark: #0d0d0d;
+            --bg-panel: #161616;
+            --bg-card: #222222;
+            --rust-red: #cd412b;
+            --rust-orange: #de6635;
+            --text-main: #f0f0f0;
+            --text-muted: #999;
+            --border: #333;
+            --accent-green: #4a7c59;
+            --sulfur: #d4af37;
+            --wood: #8b6914;
+            --stone: #888;
+            --metal: #5a8aaa;
+            --armored: #c9a227;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #sidebar {
+            width: 250px;
+            min-width: 250px;
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 16px 0;
+        }
+
+        .brand {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: var(--rust-red);
+            text-align: center;
+            margin-bottom: 24px;
+            letter-spacing: 0.5px;
+        }
+
+        .brand small {
+            display: block;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-top: 4px;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            text-align: left;
+            padding: 14px 22px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: 0.15s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-btn:hover { background: var(--bg-card); color: var(--text-main); }
+        .nav-btn.active {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border-left-color: var(--rust-red);
+        }
+
+        #content {
+            flex: 1;
+            padding: 24px 28px;
+            overflow-y: auto;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        h2 {
+            font-size: 1.6rem;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+        }
+
+        @media (max-width: 900px) {
+            body { flex-direction: column; height: auto; overflow: auto; }
+            #sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; padding: 10px; }
+            .brand { width: 100%; margin-bottom: 8px; }
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px;
+        }
+
+        .panel h3 {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 14px;
+        }
+
+        .category-label {
+            font-size: 0.75rem;
+            color: var(--rust-orange);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 14px 0 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+
+        .category-label:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+
+        .target-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-card);
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        .counter-controls { display: flex; align-items: center; gap: 8px; }
+
+        .btn-sm {
+            background: var(--border);
+            color: white;
+            border: none;
+            width: 26px;
+            height: 26px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .btn-sm:hover { background: var(--rust-orange); }
+
+        .count-display { min-width: 22px; text-align: center; font-weight: 700; }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 9px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        .result-item:last-child { border-bottom: none; }
+
+        .cost-val { font-weight: 700; color: var(--rust-orange); }
+        .sulfur-val { font-weight: 700; color: var(--sulfur); }
+
+        .best-badge {
+            background: var(--accent-green);
+            color: white;
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 6px;
+        }
+
+        .totals-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+
+        .totals-box h4 {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .preset-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .preset-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.15s;
+        }
+
+        .preset-btn:hover { border-color: var(--rust-red); }
+
+        /* Base Designer */
+        .designer-layout {
+            display: grid;
+            grid-template-columns: 240px 1fr 220px;
+            gap: 16px;
+            height: calc(100vh - 130px);
+        }
+
+        @media (max-width: 1100px) {
+            .designer-layout { grid-template-columns: 1fr; height: auto; }
+        }
+
+        .tool-palette { display: flex; flex-direction: column; gap: 6px; }
+
+        .tool-btn {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 0.85rem;
+            transition: 0.15s;
+        }
+
+        .tool-btn:hover, .tool-btn.active {
+            border-color: var(--rust-red);
+            background: #2a2a2a;
+        }
+
+        .tier-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin: 10px 0;
+        }
+
+        .tier-btn {
+            padding: 8px;
+            border: 2px solid var(--border);
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            text-align: center;
+            background: var(--bg-card);
+            color: var(--text-main);
+        }
+
+        .tier-btn.active { border-color: var(--rust-red); }
+        .tier-btn[data-tier="wood"].active { border-color: var(--wood); background: #2a2200; }
+        .tier-btn[data-tier="stone"].active { border-color: var(--stone); background: #222; }
+        .tier-btn[data-tier="metal"].active { border-color: var(--metal); background: #1a2530; }
+        .tier-btn[data-tier="armored"].active { border-color: var(--armored); background: #2a2500; }
+
+        .canvas-container {
+            background: #111;
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+        }
+
+        .build-grid {
+            display: grid;
+            grid-template-columns: repeat(24, 32px);
+            grid-template-rows: repeat(24, 32px);
+            gap: 1px;
+            background: #080808;
+            padding: 8px;
+        }
+
+        .cell {
+            background: #1a1a1a;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: 0.08s;
+            position: relative;
+        }
+
+        .cell:hover { outline: 1px solid #555; }
+
+        .cell.foundation-wood { background: #6b4f1a; }
+        .cell.foundation-stone { background: #666; }
+        .cell.foundation-metal { background: #3a6070; }
+        .cell.foundation-armored { background: #8a7020; }
+
+        .cell.wall-wood { background: #a67a53; border: 1px solid #cd8f58; }
+        .cell.wall-stone { background: #888; border: 1px solid #aaa; }
+        .cell.wall-metal { background: #5a8aaa; border: 1px solid #7ab; }
+        .cell.wall-armored { background: #c9a227; border: 1px solid #e0c040; }
+
+        .cell.door { background: var(--rust-red); border: 1px solid var(--rust-orange); }
+        .cell.floor-wood { background: #5a4020; opacity: 0.85; }
+        .cell.floor-stone { background: #555; opacity: 0.85; }
+        .cell.floor-metal { background: #3a5060; opacity: 0.85; }
+
+        /* Triangle foundation — one piece, 4 rotations (like in-game) */
+        .cell.triangle-wood, .cell.triangle-stone, .cell.triangle-metal, .cell.triangle-armored { background: #1a1a1a; }
+        .cell.triangle-wood::before, .cell.triangle-stone::before, .cell.triangle-metal::before, .cell.triangle-armored::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 2px;
+        }
+        .cell.triangle-wood::before { background: #6b4f1a; }
+        .cell.triangle-stone::before { background: #666; }
+        .cell.triangle-metal::before { background: #3a6070; }
+        .cell.triangle-armored::before { background: #8a7020; }
+        .cell.triangle-wood[data-rot="0"]::before, .cell.triangle-stone[data-rot="0"]::before,
+        .cell.triangle-metal[data-rot="0"]::before, .cell.triangle-armored[data-rot="0"]::before { clip-path: polygon(0 100%, 0 0, 100% 100%); }
+        .cell.triangle-wood[data-rot="1"]::before, .cell.triangle-stone[data-rot="1"]::before,
+        .cell.triangle-metal[data-rot="1"]::before, .cell.triangle-armored[data-rot="1"]::before { clip-path: polygon(0 0, 100% 0, 100% 100%); }
+        .cell.triangle-wood[data-rot="2"]::before, .cell.triangle-stone[data-rot="2"]::before,
+        .cell.triangle-metal[data-rot="2"]::before, .cell.triangle-armored[data-rot="2"]::before { clip-path: polygon(0 0, 100% 0, 0 100%); }
+        .cell.triangle-wood[data-rot="3"]::before, .cell.triangle-stone[data-rot="3"]::before,
+        .cell.triangle-metal[data-rot="3"]::before, .cell.triangle-armored[data-rot="3"]::before { clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+
+        .rotate-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+        .rotate-btn:hover { border-color: var(--rust-orange); }
+
+        /* Map Spot Finder */
+        .map-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 18px;
+            min-height: calc(100vh - 130px);
+        }
+        @media (max-width: 900px) { .map-layout { grid-template-columns: 1fr; } }
+
+        .map-controls label { display: block; font-size: 0.8rem; color: var(--text-muted); margin: 10px 0 4px; }
+        .map-controls select, .map-controls input[type="file"] {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+        }
+
+        .map-mode-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+        .map-mode-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 7px 8px;
+            font-size: 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .map-mode-btn.active { border-color: var(--rust-red); color: var(--text-main); background: #2a2a2a; }
+
+        .map-viewport {
+            position: relative;
+            background: #111;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            min-height: 450px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .map-viewport.empty { border-style: dashed; }
+        .map-viewport canvas { max-width: 100%; max-height: calc(100vh - 160px); display: block; cursor: crosshair; }
+
+        .spot-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .spot-card:hover, .spot-card.highlight { border-color: var(--accent-green); }
+        .spot-card .spot-rank { font-weight: 800; color: var(--accent-green); font-size: 0.9rem; }
+        .spot-card .spot-score { color: var(--sulfur); font-size: 0.8rem; float: right; }
+        .spot-card ul { margin: 8px 0 0 16px; font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; }
+        .spot-card li.positive { color: #7cb88a; }
+        .spot-card li.negative { color: #c77; }
+
+        .analyze-btn {
+            width: 100%;
+            background: var(--rust-red);
+            border: none;
+            color: white;
+            padding: 12px;
+            border-radius: 5px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 12px;
+            font-size: 0.95rem;
+        }
+        .analyze-btn:hover { background: var(--rust-orange); }
+        .analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .scan-status {
+            font-size: 0.8rem;
+            color: var(--rust-orange);
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+        .scan-status.done { color: var(--accent-green); }
+        .scan-status.error { color: #c77; }
+        .marker-legend span { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+        .cost-panel { font-size: 0.85rem; }
+        .cost-panel .result-item { padding: 6px 0; }
+
+        .hint {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 12px;
+            line-height: 1.5;
+        }
+
+        .clear-btn {
+            background: transparent;
+            border: 1px solid var(--rust-red);
+            color: var(--rust-red);
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 8px;
+            width: 100%;
+        }
+
+        .clear-btn:hover { background: var(--rust-red); color: white; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="brand">
+        RUST COMPANION
+        <small>Raid · Craft · Build · Map</small>
+    </div>
+    <button class="nav-btn active" data-tab="raid-calc">💥 Raid Calculator</button>
+    <button class="nav-btn" data-tab="resource-calc">⛏️ Resource Calculator</button>
+    <button class="nav-btn" data-tab="base-design">📐 Base Designer</button>
+    <button class="nav-btn" data-tab="map-finder">🗺️ Map Spot Finder</button>
+</div>
+
+<div id="content">
+
+    <!-- RAID CALCULATOR -->
+    <div id="raid-calc" class="tab-content active">
+        <h2>Raid Calculator</h2>
+        <p class="subtitle">Pick what you want to break. Numbers use in-game damage values — always bring 10–20% extra.</p>
+
+        <div class="preset-row">
+            <button class="preset-btn" onclick="applyRaidPreset('wood')">🪵 Wood Base</button>
+            <button class="preset-btn" onclick="applyRaidPreset('stone')">🪨 Stone Base</button>
+            <button class="preset-btn" onclick="applyRaidPreset('sheet')">🔩 Sheet Metal</button>
+            <button class="preset-btn" onclick="applyRaidPreset('tc')">📦 TC Raid</button>
+            <button class="preset-btn" onclick="clearRaidCounts()">✕ Clear All</button>
+        </div>
+
+        <div class="grid-2">
+            <div class="panel">
+                <h3>Target Structures</h3>
+                <div id="raid-targets"></div>
+            </div>
+            <div class="panel">
+                <h3>Explosives Needed</h3>
+                <div id="raid-results"></div>
+                <div class="totals-box" id="raid-materials"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESOURCE CALCULATOR -->
+    <div id="resource-calc" class="tab-content">
+        <h2>Resource Calculator</h2>
+        <p class="subtitle">Select items to craft — components break down into raw materials automatically.</p>
+
+        <div class="grid-2">
+            <div class="panel">
+                <h3>Items to Craft</h3>
+                <div id="resource-targets"></div>
+            </div>
+            <div class="panel">
+                <h3>Total Materials Needed</h3>
+                <div id="resource-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BASE DESIGNER -->
+    <div id="base-design" class="tab-content">
+        <h2>Base Designer</h2>
+        <p class="subtitle">Click or drag to paint your floor plan. Pick a tier to see upgrade costs.</p>
+        <div id="designer-container"></div>
+    </div>
+
+    <!-- MAP SPOT FINDER -->
+    <div id="map-finder" class="tab-content">
+        <h2>Map Spot Finder</h2>
+        <p class="subtitle">Upload your server map — monument names are detected automatically. Adjust markers if needed, then find the best spots.</p>
+        <div class="map-layout">
+            <div class="panel map-controls">
+                <h3>Setup</h3>
+                <label>1. Upload server map image</label>
+                <input type="file" id="map-upload" accept="image/*">
+
+                <label>2. Your playstyle</label>
+                <select id="playstyle-select">
+                    <option value="balanced">Balanced (solo/group)</option>
+                    <option value="farm">Farmer / Builder</option>
+                    <option value="pvp">PvP / Monument runner</option>
+                    <option value="hidden">Hidden / Low profile</option>
+                    <option value="clan">Clan base (defensible)</option>
+                </select>
+
+                <label>3. Mark monuments on map</label>
+                <select id="monument-select">
+                    <option value="launch">🚀 Launch Site (large)</option>
+                    <option value="airfield">✈️ Airfield (large)</option>
+                    <option value="mil_tunnels">🕳️ Military Tunnels (large)</option>
+                    <option value="train">🚂 Train Yard (medium)</option>
+                    <option value="power">⚡ Power Plant (medium)</option>
+                    <option value="water">💧 Water Treatment (medium)</option>
+                    <option value="excavator">⛏️ Excavator (medium)</option>
+                    <option value="supermarket">🏪 Supermarket (small)</option>
+                    <option value="gas">⛽ Gas Station (small)</option>
+                    <option value="mining">⛏️ Mining Outpost (small)</option>
+                    <option value="outpost">🛡️ Outpost (safe zone)</option>
+                    <option value="bandit">🏴 Bandit Camp (safe zone)</option>
+                    <option value="avoid">⛔ Avoid zone (other bases)</option>
+                </select>
+                <div class="map-mode-btns">
+                    <button class="map-mode-btn active" id="mode-place" onclick="setMapMode('place')">📍 Place</button>
+                    <button class="map-mode-btn" id="mode-erase" onclick="setMapMode('erase')">🧹 Erase</button>
+                </div>
+                <p class="hint" id="map-scan-status">Upload a map — monument names like "Airfield" and "Water Treatment" are auto-detected.</p>
+                <button class="preset-btn" style="width:100%;margin-top:8px" id="rescan-btn" disabled onclick="autoDetectMonuments()">🔍 Re-scan for Monuments</button>
+
+                <details style="margin-top:12px" open>
+                    <summary style="cursor:pointer;color:var(--rust-orange);font-size:0.85rem;font-weight:600">Quick Mark (if auto-detect fails)</summary>
+                    <p class="hint" style="margin:8px 0">Click a monument below, then click its location on the map.</p>
+                    <div id="quick-mark-btns" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px"></div>
+                </details>
+
+                <button class="analyze-btn" id="analyze-btn" disabled onclick="analyzeMapSpots()">Find Best Spots</button>
+                <button class="clear-btn" style="margin-top:8px" onclick="clearMapData()">Clear Map & Markers</button>
+
+                <div class="marker-legend">
+                    <span style="background:#cd412b"></span> Large monument<br>
+                    <span style="background:#de6635"></span> Medium monument<br>
+                    <span style="background:#d4af37"></span> Small / resource<br>
+                    <span style="background:#4a7c59"></span> Safe zone<br>
+                    <span style="background:#4af"></span> Recommended spot<br>
+                    <span style="border:2px solid #aaf;border-radius:50%;width:10px;height:10px;display:inline-block"></span> Auto-detected
+                </div>
+
+                <h3 style="margin-top:16px">Top Recommendations</h3>
+                <div id="spot-results"><p class="hint">Upload a map and analyze to see results.</p></div>
+            </div>
+            <div class="map-viewport empty" id="map-viewport">
+                <p class="hint" id="map-placeholder">Upload a map image to get started</p>
+                <canvas id="map-canvas" style="display:none"></canvas>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+// ============================================================
+// TAB NAVIGATION
+// ============================================================
+document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(btn.dataset.tab).classList.add('active');
+        btn.classList.add('active');
+    });
+});
+
+// ============================================================
+// RAID CALCULATOR — game-accurate HP & damage data
+// ============================================================
+const STRUCTURES = {
+    wooden_door:          { name: 'Wooden Door',           hp: 200,  cat: 'Doors' },
+    sheet_metal_door:     { name: 'Sheet Metal Door',      hp: 250,  cat: 'Doors' },
+    garage_door:          { name: 'Garage Door',           hp: 600,  cat: 'Doors' },
+    armored_door:         { name: 'Armored Door',          hp: 1000, cat: 'Doors' },
+    ladder_hatch:         { name: 'Ladder Hatch',          hp: 250,  cat: 'Doors' },
+    wooden_wall:          { name: 'Wooden Wall',           hp: 250,  cat: 'Walls' },
+    stone_wall:           { name: 'Stone Wall',            hp: 500,  cat: 'Walls' },
+    metal_wall:           { name: 'Sheet Metal Wall',      hp: 1000, cat: 'Walls' },
+    armored_wall:         { name: 'Armored Wall',          hp: 2000, cat: 'Walls' },
+    external_wooden_wall: { name: 'External Wooden Wall',  hp: 500,  cat: 'External' },
+    external_stone_wall:  { name: 'External Stone Wall',   hp: 500,  cat: 'External' },
+    auto_turret:          { name: 'Auto Turret',           hp: 1000, cat: 'Deployables' },
+    shotgun_trap:         { name: 'Shotgun Trap',          hp: 300,  cat: 'Deployables' },
+    tool_cupboard:        { name: 'Tool Cupboard (TC)',    hp: 100,  cat: 'Deployables' },
+    metal_shop_front:     { name: 'Metal Shop Front',      hp: 750,  cat: 'Deployables' },
+};
+
+const EXPLOSIVES = {
+    c4:              { name: 'Timed Explosive (C4)', sulfur: 2200, materials: { 'Sulfur': 2200, 'Charcoal': 3000, 'Metal Fragments': 200, 'Low Grade Fuel': 60, 'Tech Trash': 2, 'Cloth': 5 } },
+    rocket:          { name: 'Rocket',               sulfur: 1400, materials: { 'Sulfur': 1400, 'Charcoal': 1950, 'Metal Fragments': 100, 'Low Grade Fuel': 30, 'Metal Pipe': 2 } },
+    satchel:         { name: 'Satchel Charge',       sulfur: 480,  materials: { 'Sulfur': 480, 'Charcoal': 720, 'Metal Fragments': 80, 'Cloth': 10, 'Rope': 1 } },
+    explosive_ammo:  { name: 'Explosive 5.56 Ammo',  sulfur: 25,   materials: { 'Sulfur': 25, 'Charcoal': 30, 'Metal Fragments': 5 } },
+    beancan:         { name: 'Beancan Grenade',      sulfur: 60,   materials: { 'Sulfur': 60, 'Charcoal': 90, 'Metal Fragments': 20 } },
+    molotov:         { name: 'Molotov Cocktail',     sulfur: 0,    materials: { 'Cloth': 1, 'Low Grade Fuel': 50 }, woodOnly: true },
+};
+
+// Damage per explosive vs each structure (from Rust game files)
+const DAMAGE = {
+    c4: {
+        wooden_door: 1100, sheet_metal_door: 440, garage_door: 440, armored_door: 440, ladder_hatch: 440,
+        wooden_wall: 495, stone_wall: 275, metal_wall: 275, armored_wall: 275,
+        external_wooden_wall: 495, external_stone_wall: 275,
+        auto_turret: 1100, shotgun_trap: 275, tool_cupboard: 1100, metal_shop_front: 275,
+    },
+    rocket: {
+        wooden_door: 550.375, sheet_metal_door: 220.375, garage_door: 220.375, armored_door: 220.375, ladder_hatch: 220.375,
+        wooden_wall: 247.65, stone_wall: 137.65, metal_wall: 137.575, armored_wall: 137.575,
+        external_wooden_wall: 247.65, external_stone_wall: 137.65,
+        auto_turret: 312.5, shotgun_trap: 137.575, tool_cupboard: 550.375, metal_shop_front: 137.575,
+    },
+    satchel: {
+        wooden_door: 170, sheet_metal_door: 70, garage_door: 70, armored_door: 70, ladder_hatch: 70,
+        wooden_wall: 91.5, stone_wall: 51.5, metal_wall: 43.5, armored_wall: 43.5,
+        external_wooden_wall: 91.5, external_stone_wall: 51.5,
+        auto_turret: 550, shotgun_trap: 43.5, tool_cupboard: 170, metal_shop_front: 43.5,
+    },
+    explosive_ammo: {
+        wooden_door: 11.016, sheet_metal_door: 4.0064, garage_door: 4.0064, armored_door: 4.0064, ladder_hatch: 4.0064,
+        wooden_wall: 5.1072, stone_wall: 2.704, metal_wall: 2.506, armored_wall: 2.506,
+        external_wooden_wall: 5.1072, external_stone_wall: 2.704,
+        auto_turret: 9.008, shotgun_trap: 2.506, tool_cupboard: 11.016, metal_shop_front: 2.506,
+    },
+    beancan: {
+        wooden_door: 35, sheet_metal_door: 14.5, garage_door: 14.5, armored_door: 14.5, ladder_hatch: 14.5,
+        wooden_wall: 19.5, stone_wall: 11, metal_wall: 9, armored_wall: 9,
+        external_wooden_wall: 19.5, external_stone_wall: 11,
+        auto_turret: 65, shotgun_trap: 9, tool_cupboard: 35, metal_shop_front: 7.65,
+    },
+    molotov: {
+        wooden_door: 100, wooden_wall: 62.5, external_wooden_wall: 62.5, tool_cupboard: 100,
+    },
+};
+
+const WOOD_STRUCTURES = new Set(['wooden_door', 'wooden_wall', 'external_wooden_wall', 'tool_cupboard']);
+
+const raidCounts = {};
+Object.keys(STRUCTURES).forEach(k => raidCounts[k] = 0);
+
+function qtyNeeded(hp, dmg) {
+    if (!dmg || dmg <= 0) return null;
+    return Math.ceil(hp / dmg);
+}
+
+function renderRaidTargets() {
+    const container = document.getElementById('raid-targets');
+    const categories = {};
+    Object.entries(STRUCTURES).forEach(([key, s]) => {
+        if (!categories[s.cat]) categories[s.cat] = [];
+        categories[s.cat].push([key, s]);
+    });
+
+    container.innerHTML = '';
+    for (const [cat, items] of Object.entries(categories)) {
+        container.innerHTML += `<div class="category-label">${cat}</div>`;
+        items.forEach(([key, s]) => {
+            container.innerHTML += `
+                <div class="target-row">
+                    <span>${s.name}</span>
+                    <div class="counter-controls">
+                        <button class="btn-sm" onclick="updateRaidCount('${key}', -1)">−</button>
+                        <span class="count-display" id="count-${key}">${raidCounts[key]}</span>
+                        <button class="btn-sm" onclick="updateRaidCount('${key}', 1)">+</button>
+                    </div>
+                </div>`;
+        });
+    }
+    calculateRaidTotals();
+}
+
+function updateRaidCount(key, change) {
+    raidCounts[key] = Math.max(0, raidCounts[key] + change);
+    document.getElementById(`count-${key}`).textContent = raidCounts[key];
+    calculateRaidTotals();
+}
+
+function applyRaidPreset(preset) {
+    Object.keys(raidCounts).forEach(k => raidCounts[k] = 0);
+    const presets = {
+        wood:   { wooden_door: 2, wooden_wall: 8, tool_cupboard: 1 },
+        stone:  { stone_wall: 6, sheet_metal_door: 2, garage_door: 1, tool_cupboard: 1 },
+        sheet:  { metal_wall: 4, sheet_metal_door: 2, garage_door: 1, auto_turret: 2 },
+        tc:     { tool_cupboard: 1 },
+    };
+    Object.assign(raidCounts, presets[preset] || {});
+    renderRaidTargets();
+}
+
+function clearRaidCounts() {
+    Object.keys(raidCounts).forEach(k => raidCounts[k] = 0);
+    renderRaidTargets();
+}
+
+function calculateRaidTotals() {
+    const totals = {};
+    Object.keys(EXPLOSIVES).forEach(e => totals[e] = 0);
+
+    Object.entries(raidCounts).forEach(([structKey, qty]) => {
+        if (qty <= 0) return;
+        const hp = STRUCTURES[structKey].hp;
+
+        Object.keys(EXPLOSIVES).forEach(expKey => {
+            const dmg = DAMAGE[expKey]?.[structKey];
+            if (EXPLOSIVES[expKey].woodOnly && !WOOD_STRUCTURES.has(structKey)) return;
+            const needed = qtyNeeded(hp, dmg);
+            if (needed !== null) totals[expKey] += needed * qty;
+        });
+    });
+
+    // Find cheapest sulfur option
+    let bestKey = null, bestSulfur = Infinity;
+    Object.entries(totals).forEach(([k, count]) => {
+        if (count <= 0) return;
+        const cost = count * EXPLOSIVES[k].sulfur;
+        if (cost < bestSulfur) { bestSulfur = cost; bestKey = k; }
+    });
+
+    const resultsEl = document.getElementById('raid-results');
+    const hasTargets = Object.values(raidCounts).some(v => v > 0);
+
+    if (!hasTargets) {
+        resultsEl.innerHTML = '<p class="hint">Add structures on the left to see raid costs.</p>';
+        document.getElementById('raid-materials').innerHTML = '';
+        return;
+    }
+
+    resultsEl.innerHTML = '';
+    const order = ['c4', 'rocket', 'satchel', 'explosive_ammo', 'beancan', 'molotov'];
+    order.forEach(key => {
+        const count = totals[key];
+        if (count <= 0) return;
+        const exp = EXPLOSIVES[key];
+        const sulfur = count * exp.sulfur;
+        const badge = key === bestKey && exp.sulfur > 0 ? '<span class="best-badge">CHEAPEST</span>' : '';
+        resultsEl.innerHTML += `
+            <div class="result-item">
+                <span>${exp.name}${badge}</span>
+                <span class="cost-val">${count.toLocaleString()}</span>
+            </div>
+            ${sulfur > 0 ? `<div class="result-item" style="padding-left:12px;font-size:0.8rem;color:var(--text-muted)"><span>↳ Sulfur</span><span class="sulfur-val">${sulfur.toLocaleString()}</span></div>` : ''}`;
+    });
+
+    // Material breakdown for cheapest explosive option
+    const materialsEl = document.getElementById('raid-materials');
+    if (bestKey && totals[bestKey] > 0) {
+        const matTotals = {};
+        Object.entries(EXPLOSIVES[bestKey].materials).forEach(([mat, amt]) => {
+            matTotals[mat] = amt * totals[bestKey];
+        });
+        materialsEl.innerHTML = `<h4>Craft Materials (${EXPLOSIVES[bestKey].name} × ${totals[bestKey]})</h4>`;
+        Object.entries(matTotals).forEach(([mat, amt]) => {
+            materialsEl.innerHTML += `<div class="result-item"><span>${mat}</span><span class="cost-val">${amt.toLocaleString()}</span></div>`;
+        });
+    } else if (totals.molotov > 0) {
+        materialsEl.innerHTML = `<h4>Craft Materials (Molotov × ${totals.molotov})</h4>`;
+        materialsEl.innerHTML += `<div class="result-item"><span>Cloth</span><span class="cost-val">${totals.molotov}</span></div>`;
+        materialsEl.innerHTML += `<div class="result-item"><span>Low Grade Fuel</span><span class="cost-val">${(totals.molotov * 50).toLocaleString()}</span></div>`;
+    } else {
+        materialsEl.innerHTML = '';
+    }
+}
+
+// ============================================================
+// RESOURCE CALCULATOR — recursive recipe breakdown
+// ============================================================
+const RECIPES = {
+    // Raw / base
+    gunpowder:     { name: 'Gunpowder',     yields: 10, cost: { charcoal: 30, sulfur: 20 } },
+    charcoal:      { name: 'Charcoal',      raw: true },
+    sulfur:        { name: 'Sulfur',        raw: true },
+    wood:          { name: 'Wood',          raw: true },
+    metal_frags:   { name: 'Metal Fragments', raw: true },
+    hqm:           { name: 'High Quality Metal', raw: true },
+    cloth:         { name: 'Cloth',         raw: true },
+    low_grade:     { name: 'Low Grade Fuel', raw: true },
+    rope:          { name: 'Rope',          cost: { cloth: 30 } },
+    metal_pipe:    { name: 'Metal Pipe',    cost: { metal_frags: 150, hqm: 2 } },
+    tech_trash:    { name: 'Tech Trash',    raw: true },
+    spring:        { name: 'Metal Spring',  cost: { metal_frags: 50, hqm: 1 } },
+    rifle_body:    { name: 'Rifle Body',    cost: { metal_frags: 50, hqm: 2 } },
+    semi_body:     { name: 'Semi-Auto Body', cost: { metal_frags: 450, hqm: 4 } },
+    smg_body:      { name: 'SMG Body',      cost: { metal_frags: 200, hqm: 2 } },
+    tarp:          { name: 'Tarp',          cost: { cloth: 50, rope: 1 } },
+    sewing_kit:    { name: 'Sewing Kit',    cost: { cloth: 20, rope: 2 } },
+    stash:         { name: 'Small Stash',   cost: { cloth: 10 } },
+
+    // Explosives
+    beancan:       { name: 'Beancan Grenade', cost: { gunpowder: 6, metal_frags: 20 } },
+    satchel:       { name: 'Satchel Charge',  cost: { beancan: 4, stash: 1, cloth: 10, rope: 1 } },
+    c4:            { name: 'Timed Explosive (C4)', cost: { gunpowder: 220, tech_trash: 2, cloth: 5 } },
+    rocket:        { name: 'Rocket',          cost: { gunpowder: 150, metal_pipe: 2, metal_frags: 100 } },
+    explo_ammo:    { name: 'Explosive 5.56 (×2)', yields: 2, cost: { gunpowder: 10, metal_frags: 10 } },
+    molotov:       { name: 'Molotov Cocktail', cost: { cloth: 1, low_grade: 50 } },
+
+    // Weapons & gear
+    ak47:          { name: 'Assault Rifle (AK)', cost: { wood: 200, metal_frags: 500, hqm: 50, rifle_body: 1, spring: 4 } },
+    lr300:         { name: 'LR-300',          cost: { metal_frags: 400, hqm: 20, rifle_body: 1, spring: 2 } },
+    thompson:      { name: 'Thompson',        cost: { wood: 100, metal_frags: 350, hqm: 10, smg_body: 1, spring: 1 } },
+    mp5:           { name: 'MP5',             cost: { metal_frags: 300, hqm: 15, smg_body: 1, spring: 2 } },
+    bolt:          { name: 'Bolt Action Rifle', cost: { metal_frags: 400, hqm: 20, rifle_body: 1, spring: 2, metal_pipe: 3 } },
+    pump_shotgun:  { name: 'Pump Shotgun',    cost: { metal_frags: 200, hqm: 5, metal_pipe: 2, spring: 1 } },
+    hazmat:        { name: 'Hazmat Suit',     cost: { tarp: 1, hqm: 2, sewing_kit: 2 } },
+    med_syringe:   { name: 'Medical Syringe', cost: { cloth: 15, metal_frags: 10, low_grade: 10 } },
+    ammo_556:      { name: '5.56 Ammo (×20)', yields: 20, cost: { gunpowder: 10, metal_frags: 4 } },
+    ammo_pistol:   { name: 'Pistol Ammo (×20)', yields: 20, cost: { gunpowder: 6, metal_frags: 4 } },
+
+    // Building
+    code_lock:     { name: 'Code Lock',       cost: { metal_frags: 100 } },
+    garage_door:   { name: 'Garage Door',     cost: { metal_frags: 300, hqm: 3, spring: 2 } },
+    armored_door:  { name: 'Armored Door',    cost: { metal_frags: 200, hqm: 20, spring: 2 } },
+    auto_turret:   { name: 'Auto Turret',     cost: { hqm: 10, metal_pipe: 3, tech_trash: 1, metal_frags: 200 } },
+};
+
+const CRAFT_CATEGORIES = {
+    'Explosives': ['c4', 'rocket', 'satchel', 'beancan', 'explo_ammo', 'molotov'],
+    'Weapons': ['ak47', 'lr300', 'thompson', 'mp5', 'bolt', 'pump_shotgun'],
+    'Ammo & Meds': ['ammo_556', 'ammo_pistol', 'med_syringe'],
+    'Gear & Building': ['hazmat', 'code_lock', 'garage_door', 'armored_door', 'auto_turret'],
+};
+
+const craftCounts = {};
+Object.keys(RECIPES).forEach(k => { if (!RECIPES[k].raw) craftCounts[k] = 0; });
+
+function resolveRecipe(itemKey, qty, totals, depth = 0) {
+    if (depth > 20) return;
+    const recipe = RECIPES[itemKey];
+    if (!recipe) return;
+    if (recipe.raw) {
+        totals[itemKey] = (totals[itemKey] || 0) + qty;
+        return;
+    }
+    if (!recipe.cost) return;
+
+    const batches = recipe.yields ? Math.ceil(qty / recipe.yields) : qty;
+    Object.entries(recipe.cost).forEach(([ing, amt]) => {
+        resolveRecipe(ing, amt * batches, totals, depth + 1);
+    });
+}
+
+function renderResourceTargets() {
+    const container = document.getElementById('resource-targets');
+    container.innerHTML = '';
+    for (const [cat, keys] of Object.entries(CRAFT_CATEGORIES)) {
+        container.innerHTML += `<div class="category-label">${cat}</div>`;
+        keys.forEach(key => {
+            const item = RECIPES[key];
+            container.innerHTML += `
+                <div class="target-row">
+                    <span>${item.name}</span>
+                    <div class="counter-controls">
+                        <button class="btn-sm" onclick="updateCraftCount('${key}', -1)">−</button>
+                        <span class="count-display" id="craft-count-${key}">${craftCounts[key]}</span>
+                        <button class="btn-sm" onclick="updateCraftCount('${key}', 1)">+</button>
+                    </div>
+                </div>`;
+        });
+    }
+    calculateResourceTotals();
+}
+
+function updateCraftCount(key, change) {
+    craftCounts[key] = Math.max(0, craftCounts[key] + change);
+    document.getElementById(`craft-count-${key}`).textContent = craftCounts[key];
+    calculateResourceTotals();
+}
+
+function calculateResourceTotals() {
+    const totals = {};
+    Object.entries(craftCounts).forEach(([key, qty]) => {
+        if (qty > 0) resolveRecipe(key, qty, totals);
+    });
+
+    const resultsEl = document.getElementById('resource-results');
+    if (Object.keys(totals).length === 0) {
+        resultsEl.innerHTML = '<p class="hint">Add items on the left — raw materials will appear here.</p>';
+        return;
+    }
+
+    const displayOrder = ['sulfur', 'charcoal', 'gunpowder', 'wood', 'metal_frags', 'hqm', 'cloth', 'low_grade', 'metal_pipe', 'tech_trash', 'spring', 'rope'];
+    const sorted = Object.entries(totals).sort((a, b) => {
+        const ai = displayOrder.indexOf(a[0]);
+        const bi = displayOrder.indexOf(b[0]);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+
+    resultsEl.innerHTML = '';
+    sorted.forEach(([key, amt]) => {
+        const name = RECIPES[key]?.name || key;
+        const cls = key === 'sulfur' ? 'sulfur-val' : 'cost-val';
+        resultsEl.innerHTML += `<div class="result-item"><span>${name}</span><span class="${cls}">${Math.ceil(amt).toLocaleString()}</span></div>`;
+    });
+}
+
+// ============================================================
+// BASE DESIGNER
+// ============================================================
+const BUILD_COSTS = {
+    foundation: { wood: { wood: 400 }, stone: { stone: 300 }, metal: { metal_frags: 200, hqm: 5 }, armored: { metal_frags: 200, hqm: 25 } },
+    triangle:   { wood: { wood: 200 }, stone: { stone: 150 }, metal: { metal_frags: 100, hqm: 3 }, armored: { metal_frags: 100, hqm: 15 } },
+    wall:       { wood: { wood: 150 }, stone: { stone: 300 }, metal: { metal_frags: 200, hqm: 5 }, armored: { metal_frags: 200, hqm: 25 } },
+    floor:      { wood: { wood: 150 }, stone: { stone: 150 }, metal: { metal_frags: 100, hqm: 3 }, armored: { metal_frags: 100, hqm: 15 } },
+    door:       { wood: { wood: 50, metal_frags: 75 }, stone: { stone: 200, metal_frags: 75 }, metal: { metal_frags: 150, hqm: 3 }, armored: { metal_frags: 200, hqm: 20 } },
+};
+
+let currentTool = 'foundation';
+let currentTier = 'wood';
+let triangleRotation = 0;
+const gridState = new Array(576).fill(null); // 24×24
+
+const designerContainer = document.getElementById('designer-container');
+designerContainer.innerHTML = `
+    <div class="designer-layout">
+        <div>
+            <div class="panel tool-palette">
+                <h3>Material Tier</h3>
+                <div class="tier-selector">
+                    <button class="tier-btn active" data-tier="wood" onclick="setTier('wood')">🪵 Wood</button>
+                    <button class="tier-btn" data-tier="stone" onclick="setTier('stone')">🪨 Stone</button>
+                    <button class="tier-btn" data-tier="metal" onclick="setTier('metal')">🔩 Metal</button>
+                    <button class="tier-btn" data-tier="armored" onclick="setTier('armored')">🛡️ Armored</button>
+                </div>
+                <h3 style="margin-top:14px">Building Blocks</h3>
+                <button class="tool-btn active" id="btn-foundation" onclick="setTool('foundation')">🟫 Square Foundation</button>
+                <button class="tool-btn" id="btn-triangle" onclick="setTool('triangle')">📐 Triangle Foundation</button>
+                <button class="rotate-btn" onclick="rotateTriangle()">🔄 Rotate Triangle (R)</button>
+                <button class="tool-btn" id="btn-wall" onclick="setTool('wall')">🧱 Wall</button>
+                <button class="tool-btn" id="btn-floor" onclick="setTool('floor')">⬜ Floor</button>
+                <button class="tool-btn" id="btn-door" onclick="setTool('door')">🚪 Door</button>
+                <button class="tool-btn" id="btn-erase" onclick="setTool('erase')">🧹 Erase</button>
+                <button class="clear-btn" onclick="clearGrid()">Clear Blueprint</button>
+                <p class="hint">Click or drag to paint. Triangle foundations rotate like in-game — press R or use the rotate button.</p>
+            </div>
+        </div>
+        <div class="canvas-container">
+            <div class="build-grid" id="pixel-grid"></div>
+        </div>
+        <div class="panel cost-panel">
+            <h3>Build Cost</h3>
+            <div id="build-costs"><p class="hint">Start building to see costs.</p></div>
+            <div id="raid-cost-estimate" style="margin-top:16px"></div>
+        </div>
+    </div>`;
+
+function setTier(tier) {
+    currentTier = tier;
+    document.querySelectorAll('.tier-btn').forEach(b => b.classList.toggle('active', b.dataset.tier === tier));
+}
+
+function setTool(tool) {
+    currentTool = tool;
+    document.querySelectorAll('.tool-palette .tool-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById(`btn-${tool}`);
+    if (btn) btn.classList.add('active');
+}
+
+function rotateTriangle() {
+    triangleRotation = (triangleRotation + 1) % 4;
+}
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'r' || e.key === 'R') {
+        const baseTab = document.getElementById('base-design');
+        if (baseTab.classList.contains('active')) rotateTriangle();
+    }
+});
+
+function cellClass(piece) {
+    if (!piece) return 'cell';
+    if (piece.tool === 'door') return 'cell door';
+    if (piece.tool === 'triangle') return `cell triangle-${piece.tier}`;
+    return `cell ${piece.tool}-${piece.tier}`;
+}
+
+function applyCellVisual(cell, piece) {
+    cell.className = cellClass(piece);
+    if (piece?.tool === 'triangle') {
+        cell.dataset.rot = piece.rotation;
+    } else {
+        delete cell.dataset.rot;
+    }
+}
+
+function buildGridSystem() {
+    const grid = document.getElementById('pixel-grid');
+    grid.innerHTML = '';
+    let painting = false;
+
+    for (let i = 0; i < 576; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.idx = i;
+
+        cell.addEventListener('mousedown', e => { e.preventDefault(); painting = true; applyTool(i, cell); });
+        cell.addEventListener('mouseenter', () => { if (painting) applyTool(i, cell); });
+        cell.addEventListener('mouseup', () => { painting = false; });
+
+        grid.appendChild(cell);
+    }
+    document.addEventListener('mouseup', () => { painting = false; });
+}
+
+function applyTool(idx, cell) {
+    if (currentTool === 'erase') {
+        gridState[idx] = null;
+        cell.className = 'cell';
+        delete cell.dataset.rot;
+    } else {
+        const piece = { tool: currentTool, tier: currentTier };
+        if (currentTool === 'triangle') piece.rotation = triangleRotation;
+        gridState[idx] = piece;
+        applyCellVisual(cell, piece);
+    }
+    updateBuildCosts();
+}
+
+function clearGrid() {
+    if (!confirm('Clear your entire base design?')) return;
+    gridState.fill(null);
+    document.querySelectorAll('#pixel-grid .cell').forEach(c => { c.className = 'cell'; delete c.dataset.rot; });
+    updateBuildCosts();
+}
+
+function updateBuildCosts() {
+    const totals = { wood: 0, stone: 0, metal_frags: 0, hqm: 0 };
+    let pieceCount = 0;
+
+    gridState.forEach(piece => {
+        if (!piece) return;
+        pieceCount++;
+        const type = piece.tool === 'triangle' ? 'triangle' : piece.tool;
+        const costs = BUILD_COSTS[type]?.[piece.tier];
+        if (costs) Object.entries(costs).forEach(([k, v]) => totals[k] = (totals[k] || 0) + v);
+    });
+
+    const el = document.getElementById('build-costs');
+    if (pieceCount === 0) {
+        el.innerHTML = '<p class="hint">Start building to see costs.</p>';
+        document.getElementById('raid-cost-estimate').innerHTML = '';
+        return;
+    }
+
+    el.innerHTML = `<div class="result-item"><span>Pieces placed</span><span class="cost-val">${pieceCount}</span></div>`;
+    const labels = { wood: 'Wood', stone: 'Stone', metal_frags: 'Metal Fragments', hqm: 'High Quality Metal' };
+    Object.entries(totals).forEach(([k, v]) => {
+        if (v > 0) el.innerHTML += `<div class="result-item"><span>${labels[k]}</span><span class="cost-val">${v.toLocaleString()}</span></div>`;
+    });
+
+    // Rough raid estimate for the designed base
+    let estSatchels = 0, estRockets = 0;
+    gridState.forEach(piece => {
+        if (!piece || piece.tool === 'floor') return;
+        const type = piece.tool === 'triangle' ? 'triangle' : piece.tool;
+        const tierMap = { wood: 'wooden_wall', stone: 'stone_wall', metal: 'metal_wall', armored: 'armored_wall' };
+        const structKey = piece.tool === 'door' ? (piece.tier === 'armored' ? 'armored_door' : piece.tier === 'metal' ? 'sheet_metal_door' : 'wooden_door') : tierMap[piece.tier];
+        if (STRUCTURES[structKey]) {
+            const hp = STRUCTURES[structKey].hp;
+            estSatchels += qtyNeeded(hp, DAMAGE.satchel[structKey]) || 0;
+            estRockets += qtyNeeded(hp, DAMAGE.rocket[structKey]) || 0;
+        }
+    });
+
+    document.getElementById('raid-cost-estimate').innerHTML = `
+        <h3>Raid Cost Estimate</h3>
+        <div class="result-item"><span>Satchel Charges</span><span class="cost-val">${estSatchels}</span></div>
+        <div class="result-item"><span>Rockets</span><span class="cost-val">${estRockets}</span></div>
+        <p class="hint">Estimate to raid this design from the outside.</p>`;
+}
+
+// ============================================================
+// MAP SPOT FINDER
+// ============================================================
+const MONUMENT_TYPES = {
+    launch:      { name: 'Launch Site',         cat: 'large',  color: '#cd412b', minDist: 0.14, sweetMin: 0.18, sweetMax: 0.32 },
+    airfield:    { name: 'Airfield',            cat: 'large',  color: '#cd412b', minDist: 0.12, sweetMin: 0.16, sweetMax: 0.28 },
+    mil_tunnels: { name: 'Military Tunnels',    cat: 'large',  color: '#cd412b', minDist: 0.12, sweetMin: 0.15, sweetMax: 0.28 },
+    train:       { name: 'Train Yard',          cat: 'medium', color: '#de6635', minDist: 0.08, sweetMin: 0.10, sweetMax: 0.22 },
+    power:       { name: 'Power Plant',         cat: 'medium', color: '#de6635', minDist: 0.08, sweetMin: 0.10, sweetMax: 0.22 },
+    water:       { name: 'Water Treatment',     cat: 'medium', color: '#de6635', minDist: 0.08, sweetMin: 0.10, sweetMax: 0.22 },
+    excavator:   { name: 'Excavator',           cat: 'medium', color: '#de6635', minDist: 0.10, sweetMin: 0.12, sweetMax: 0.25 },
+    supermarket: { name: 'Supermarket',         cat: 'small',  color: '#d4af37', minDist: 0.03, sweetMin: 0.04, sweetMax: 0.12 },
+    gas:         { name: 'Gas Station',         cat: 'small',  color: '#d4af37', minDist: 0.03, sweetMin: 0.04, sweetMax: 0.12 },
+    mining:      { name: 'Mining Outpost',      cat: 'small',  color: '#d4af37', minDist: 0.03, sweetMin: 0.04, sweetMax: 0.12 },
+    outpost:     { name: 'Outpost',             cat: 'safe',   color: '#4a7c59', minDist: 0,    sweetMin: 0.04, sweetMax: 0.14 },
+    bandit:      { name: 'Bandit Camp',         cat: 'safe',   color: '#4a7c59', minDist: 0,    sweetMin: 0.04, sweetMax: 0.14 },
+    avoid:       { name: 'Avoid Zone',          cat: 'avoid',  color: '#933',   minDist: 0,    sweetMin: 0, sweetMax: 0.08 },
+};
+
+// Longest patterns first — matches actual in-game Rust map label text
+const MONUMENT_ALIASES = [
+    { type: 'water',       patterns: ['water treatment plant', 'water treatment', 'water treatmen', 'wtr treatment'] },
+    { type: 'excavator',   patterns: ['giant excavator pit', 'giant excavator', 'excavator pit', 'excavator'] },
+    { type: 'supermarket', patterns: ['abandoned supermarket', 'supermarket', 'super market', 'supermarke'] },
+    { type: 'mil_tunnels', patterns: ['military tunnels', 'military tunnel', 'mil tunnels', 'mil tunnel', 'military tunne'] },
+    { type: 'mil_base',    patterns: ['abandoned military base', 'military base', 'abandoned military'] },
+    { type: 'arctic',      patterns: ['arctic research base', 'arctic research', 'arctic base', 'arctic'] },
+    { type: 'gas',         patterns: ['oxums gas station', 'oxum gas station', 'oxum s gas', 'gas station', 'gas statio'] },
+    { type: 'train',       patterns: ['train yard', 'trainyard', 'train yards'] },
+    { type: 'power',       patterns: ['power plant', 'powerplan', 'power pla'] },
+    { type: 'launch',      patterns: ['launch site', 'launchsit', 'launch si'] },
+    { type: 'airfield',    patterns: ['airfield', 'air field', 'airfiel'] },
+    { type: 'mining',      patterns: ['mining outpost', 'mining outp', 'mining out'] },
+    { type: 'bandit',      patterns: ['bandit camp', 'bandit cam', 'bandit'] },
+    { type: 'outpost',     patterns: ['outpost', 'out post', 'outpos'] },
+    { type: 'dome',        patterns: ['the dome'] },
+    { type: 'barn',        patterns: ['large barn', 'large bar'] },
+    { type: 'sulfur',      patterns: ['sulfur quarry', 'sulphur quarry'] },
+    { type: 'hqm',         patterns: ['hqm quarry'] },
+    { type: 'stone',       patterns: ['stone quarry'] },
+    { type: 'junkyard',    patterns: ['junkyard', 'junk yard'] },
+    { type: 'satellite',   patterns: ['satellite dish', 'satellite'] },
+    { type: 'sewer',       patterns: ['sewer branch', 'sewer'] },
+    { type: 'lighthouse',  patterns: ['lighthouse', 'light house'] },
+    { type: 'harbor',      patterns: ['harbor', 'harbour', 'fishing village', 'large harbor'] },
+    { type: 'warehouse',   patterns: ['warehouse', 'ware house'] },
+    { type: 'waterwell',   patterns: ['water well', 'waterwell'] },
+];
+
+// Extra monuments detected on maps but scored like existing types
+MONUMENT_TYPES.junkyard   = { name: 'Junkyard',           cat: 'medium', color: '#de6635', minDist: 0.08, sweetMin: 0.10, sweetMax: 0.22 };
+MONUMENT_TYPES.dome       = { name: 'The Dome',           cat: 'medium', color: '#de6635', minDist: 0.08, sweetMin: 0.10, sweetMax: 0.22 };
+MONUMENT_TYPES.satellite  = { name: 'Satellite Dish',     cat: 'small',  color: '#d4af37', minDist: 0.03, sweetMin: 0.04, sweetMax: 0.12 };
+MONUMENT_TYPES.sewer      = { name: 'Sewer Branch',       cat: 'small',  color: '#d4af37', minDist: 0.03, sweetMin: 0.04, sweetMax: 0.12 };
+MONUMENT_TYPES.arctic     = { name: 'Arctic Research',    cat: 'large',  color: '#cd412b', minDist: 0.12, sweetMin: 0.15, sweetMax: 0.28 };
+MONUMENT_TYPES.lighthouse = { name: 'Lighthouse',         cat: 'small',  color: '#d4af37', minDist: 0.03, sweetMin: 0.04, sweetMax: 0.12 };
+MONUMENT_TYPES.harbor     = { name: 'Harbor',             cat: 'medium', color: '#de6635', minDist: 0.08, sweetMin: 0.10, sweetMax: 0.22 };
+MONUMENT_TYPES.warehouse  = { name: 'Warehouse',          cat: 'small',  color: '#d4af37', minDist: 0.03, sweetMin: 0.04, sweetMax: 0.12 };
+MONUMENT_TYPES.waterwell  = { name: 'Water Well',         cat: 'small',  color: '#d4af37', minDist: 0.03, sweetMin: 0.04, sweetMax: 0.12 };
+MONUMENT_TYPES.mil_base   = { name: 'Abandoned Military Base', cat: 'large', color: '#cd412b', minDist: 0.12, sweetMin: 0.15, sweetMax: 0.28 };
+MONUMENT_TYPES.barn       = { name: 'Large Barn',         cat: 'small',  color: '#d4af37', minDist: 0.03, sweetMin: 0.04, sweetMax: 0.12 };
+MONUMENT_TYPES.sulfur     = { name: 'Sulfur Quarry',      cat: 'small',  color: '#d4af37', minDist: 0.03, sweetMin: 0.04, sweetMax: 0.12 };
+MONUMENT_TYPES.hqm        = { name: 'HQM Quarry',         cat: 'small',  color: '#d4af37', minDist: 0.03, sweetMin: 0.04, sweetMax: 0.12 };
+MONUMENT_TYPES.stone      = { name: 'Stone Quarry',       cat: 'small',  color: '#d4af37', minDist: 0.03, sweetMin: 0.04, sweetMax: 0.12 };
+
+let mapImage = null;
+let mapMarkers = [];
+let mapSpots = [];
+let mapMode = 'place';
+let mapPixelData = null;
+let highlightedSpot = -1;
+let ocrWorker = null;
+let ocrScanning = false;
+
+let quickMarkType = null;
+
+function initQuickMarkButtons() {
+    const container = document.getElementById('quick-mark-btns');
+    const items = [
+        ['launch','Launch Site'],['airfield','Airfield'],['power','Power Plant'],
+        ['water','Water Treatment'],['train','Train Yard'],['excavator','Excavator'],
+        ['outpost','Outpost'],['bandit','Bandit Camp'],['supermarket','Supermarket'],
+        ['gas','Gas Station'],['mining','Mining Outpost'],['mil_tunnels','Mil Tunnel'],
+        ['mil_base','Mil Base'],['arctic','Arctic Base'],['dome','The Dome'],
+        ['stone','Stone Quarry'],['sulfur','Sulfur Quarry'],['hqm','HQM Quarry'],
+        ['barn','Large Barn'],
+    ];
+    container.innerHTML = items.map(([k, label]) =>
+        `<button class="preset-btn" style="font-size:0.72rem;padding:5px 8px" onclick="setQuickMark('${k}')">${label}</button>`
+    ).join('');
+}
+
+function setQuickMark(type) {
+    quickMarkType = type;
+    setMapMode('place');
+    document.getElementById('monument-select').value = type;
+    setScanStatus(`Click the map to mark: ${MONUMENT_TYPES[type]?.name || type}`, '');
+    document.querySelectorAll('#quick-mark-btns .preset-btn').forEach(btn => {
+        btn.style.borderColor = btn.getAttribute('onclick')?.includes(`'${type}'`) ? 'var(--rust-red)' : '';
+    });
+}
+
+const mapCanvas = document.getElementById('map-canvas');
+const mapCtx = mapCanvas.getContext('2d');
+
+document.getElementById('map-upload').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        const img = new Image();
+        img.onload = async () => {
+            mapImage = img;
+            mapMarkers = [];
+            mapSpots = [];
+            resizeMapCanvas();
+            cacheMapPixels();
+            drawMap();
+            document.getElementById('map-placeholder').style.display = 'none';
+            mapCanvas.style.display = 'block';
+            document.getElementById('map-viewport').classList.remove('empty');
+            document.getElementById('analyze-btn').disabled = false;
+            document.getElementById('rescan-btn').disabled = false;
+            await autoDetectMonuments(true);
+        };
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+
+function setScanStatus(msg, cls = '') {
+    const el = document.getElementById('map-scan-status');
+    el.textContent = msg;
+    el.className = 'hint scan-status' + (cls ? ' ' + cls : '');
+}
+
+function normalizeOcrText(text) {
+    return text.toLowerCase()
+        .replace(/[''`]/g, '')
+        .replace(/[0]/g, 'o')
+        .replace(/[1|!]/g, 'l')
+        .replace(/[^a-z\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function isLabelPixel(r, g, b) {
+    if (b > 90 && b > r + 20 && b > g + 10) return false; // water
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (lum > 210) return false; // snow / clouds
+    if (lum < 88) return true;  // dark ink
+    if (lum < 125 && r < 115 && g < 108 && b < 100) return true; // brown label text
+    return false;
+}
+
+function buildLabelMaskCanvas(sourceCanvas) {
+    const w = sourceCanvas.width, h = sourceCanvas.height;
+    const out = document.createElement('canvas');
+    out.width = w; out.height = h;
+    const ctx = out.getContext('2d');
+    const src = sourceCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+    const imgData = ctx.createImageData(w, h);
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4;
+            const v = isLabelPixel(src[i], src[i + 1], src[i + 2]) ? 0 : 255;
+            imgData.data[i] = imgData.data[i + 1] = imgData.data[i + 2] = v;
+            imgData.data[i + 3] = 255;
+        }
+    }
+    ctx.putImageData(imgData, 0, 0);
+    return out;
+}
+
+function detectLabelRegions(sourceCanvas) {
+    const w = sourceCanvas.width, h = sourceCanvas.height;
+    const src = sourceCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+    const mask = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4;
+            if (isLabelPixel(src[i], src[i + 1], src[i + 2])) mask[y * w + x] = 1;
+        }
+    }
+
+    const regions = [];
+    const minRun = Math.max(18, w * 0.025);
+
+    for (let y = 0; y < h; y++) {
+        let x = 0;
+        while (x < w) {
+            while (x < w && !mask[y * w + x]) x++;
+            if (x >= w) break;
+            const xStart = x;
+            while (x < w && mask[y * w + x]) x++;
+            if (x - xStart < minRun) continue;
+
+            let y0 = y, y1 = y;
+            const expandRow = ry => {
+                let cnt = 0;
+                for (let rx = xStart; rx < x; rx++) if (mask[ry * w + rx]) cnt++;
+                return cnt >= minRun * 0.5;
+            };
+            while (y0 > 0 && expandRow(y0 - 1)) y0--;
+            while (y1 < h - 1 && expandRow(y1 + 1)) y1++;
+
+            const pad = 8;
+            regions.push({
+                x0: Math.max(0, xStart - pad),
+                y0: Math.max(0, y0 - pad),
+                x1: Math.min(w, x + pad),
+                y1: Math.min(h, y1 + pad + 20),
+            });
+        }
+    }
+
+    return mergeRegions(regions).filter(r => {
+        const rw = r.x1 - r.x0, rh = r.y1 - r.y0;
+        return rw >= minRun && rh >= 6 && rh <= h * 0.08 && rw / rh >= 1.5;
+    });
+}
+
+function mergeRegions(regions) {
+    regions.sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
+    const merged = [];
+    for (const r of regions) {
+        const hit = merged.find(m =>
+            Math.abs(m.y0 - r.y0) < 20 &&
+            !(r.x1 < m.x0 - 15 || r.x0 > m.x1 + 15)
+        );
+        if (hit) {
+            hit.x0 = Math.min(hit.x0, r.x0);
+            hit.y0 = Math.min(hit.y0, r.y0);
+            hit.x1 = Math.max(hit.x1, r.x1);
+            hit.y1 = Math.max(hit.y1, r.y1);
+        } else {
+            merged.push({ ...r });
+        }
+    }
+    return merged;
+}
+
+function cropRegion(sourceCanvas, region, scaleUp = 3) {
+    const rw = region.x1 - region.x0, rh = region.y1 - region.y0;
+    const c = document.createElement('canvas');
+    c.width = rw * scaleUp;
+    c.height = rh * scaleUp;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(sourceCanvas, region.x0, region.y0, rw, rh, 0, 0, c.width, c.height);
+    return c;
+}
+
+function findGreenShopIcons(sourceCanvas) {
+    const w = sourceCanvas.width, h = sourceCanvas.height;
+    const src = sourceCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+    const mask = new Uint8Array(w * h);
+
+    // Tight filter: bright green vending-machine circles only (not grass/terrain)
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4;
+            const r = src[i], g = src[i + 1], b = src[i + 2];
+            if (g > 140 && g > r * 2.0 && g > b * 1.6 && r < 85 && b < 85) {
+                mask[y * w + x] = 1;
+            }
+        }
+    }
+
+    const visited = new Uint8Array(w * h);
+    const icons = [];
+    const maxSize = Math.max(400, w * 0.002); // each icon is a small blob
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const start = y * w + x;
+            if (!mask[start] || visited[start]) continue;
+
+            let sx = 0, sy = 0, cnt = 0;
+            const stack = [[x, y]];
+            visited[start] = 1;
+            let tooBig = false;
+
+            while (stack.length) {
+                const [cx, cy] = stack.pop();
+                sx += cx; sy += cy; cnt++;
+                if (cnt > maxSize) { tooBig = true; break; }
+
+                for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                    const nx = cx + dx, ny = cy + dy;
+                    if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+                    const ni = ny * w + nx;
+                    if (mask[ni] && !visited[ni]) {
+                        visited[ni] = 1;
+                        stack.push([nx, ny]);
+                    }
+                }
+            }
+
+            if (!tooBig && cnt >= 4 && cnt <= maxSize) {
+                icons.push({ x: sx / cnt, y: sy / cnt });
+            }
+        }
+    }
+    return icons;
+}
+
+function groupNearbyIcons(icons, radius) {
+    const groups = [];
+    const used = new Uint8Array(icons.length);
+
+    for (let i = 0; i < icons.length; i++) {
+        if (used[i]) continue;
+        const group = [icons[i]];
+        used[i] = 1;
+
+        let expanded = true;
+        while (expanded) {
+            expanded = false;
+            for (let j = 0; j < icons.length; j++) {
+                if (used[j]) continue;
+                const near = group.some(g => Math.hypot(icons[j].x - g.x, icons[j].y - g.y) < radius);
+                if (near) {
+                    group.push(icons[j]);
+                    used[j] = 1;
+                    expanded = true;
+                }
+            }
+        }
+        groups.push(group);
+    }
+    return groups;
+}
+
+function detectGreenIconClusters(sourceCanvas, invScale) {
+    const w = sourceCanvas.width, h = sourceCanvas.height;
+    const icons = findGreenShopIcons(sourceCanvas);
+    if (icons.length === 0) return [];
+
+    // Group icons that belong to the same safe zone (Bandit / Outpost have many machines)
+    const groupRadius = Math.max(w * 0.06, 80);
+    const groups = groupNearbyIcons(icons, groupRadius);
+    const results = [];
+
+    // Only mark safe zones with many shop icons — never auto-mark Large Barn (1 icon = false positives)
+    const safeGroups = groups
+        .filter(g => g.length >= 5)
+        .sort((a, b) => b.length - a.length);
+
+    safeGroups.forEach(group => {
+        const cx = group.reduce((s, ic) => s + ic.x, 0) / group.length;
+        const cy = group.reduce((s, ic) => s + ic.y, 0) / group.length;
+        const nx = cx / w;
+
+        // Outpost tends right/center-right; Bandit center-left on most maps
+        const type = nx >= 0.52 ? 'outpost' : 'bandit';
+
+        // Don't duplicate the same safe zone type
+        if (mapMarkers.some(m => m.auto && m.type === type)) return;
+
+        addAutoMarker(type, cx * invScale, cy * invScale + 20, type, group.length * 10);
+        results.push(MONUMENT_TYPES[type]?.name || type);
+    });
+
+    return results;
+}
+
+async function ocrCanvas(canvas, psm = '7', uppercase = false) {
+    const opts = { tessedit_pageseg_mode: psm };
+    if (uppercase) opts.tessedit_char_whitelist = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ \'';
+    if (ocrWorker) {
+        await ocrWorker.setParameters(opts);
+        const { data } = await ocrWorker.recognize(canvas.toDataURL('image/png'));
+        return data;
+    }
+    const { data } = await Tesseract.recognize(canvas.toDataURL('image/png'), 'eng', opts);
+    return data;
+}
+
+function tryMatchRegionText(text, region, invScale, foundNames, seen) {
+    const type = matchMonumentType(text);
+    if (!type || type === 'avoid') return 0;
+
+    const cx = (region.x0 + region.x1) / 2 * invScale;
+    const cy = (region.y0 + region.y1) / 2 * invScale;
+    const key = type + '|' + Math.round(cx / 35) + '|' + Math.round(cy / 35);
+    if (seen.has(key)) return 0;
+    seen.add(key);
+
+    if (addAutoMarker(type, cx, cy + 20, text.trim(), 60)) {
+        foundNames.push(MONUMENT_TYPES[type]?.name || type);
+        return 1;
+    }
+    return 0;
+}
+
+function collectOcrMatches(data, invScale, foundNames, seen) {
+    let found = 0;
+    const allTexts = [];
+
+    function tryAdd(text, bbox, confidence) {
+        if (!text || !bbox) return;
+        allTexts.push(text);
+        const type = matchMonumentType(text);
+        if (!type || type === 'avoid') return;
+
+        const cx = (bbox.x0 + bbox.x1) / 2 * invScale;
+        const cy = (bbox.y0 + bbox.y1) / 2 * invScale;
+        const markerY = cy + (bbox.y1 - bbox.y0) * invScale * 0.4;
+        const key = type + '|' + Math.round(cx / 35) + '|' + Math.round(cy / 35);
+        if (seen.has(key)) return;
+        seen.add(key);
+
+        if (addAutoMarker(type, cx, markerY, text, confidence || 0)) {
+            found++;
+            foundNames.push(MONUMENT_TYPES[type]?.name || type);
+        }
+    }
+
+    (data.lines || []).forEach(l => tryAdd(l.text?.trim(), l.bbox, l.confidence));
+    (data.words || []).forEach(w => tryAdd(w.text?.trim(), w.bbox, w.confidence));
+
+    if (data.words?.length > 1) {
+        const rows = {};
+        data.words.forEach(w => {
+            const k = Math.round((w.bbox.y0 + w.bbox.y1) / 2 / 6);
+            (rows[k] ||= []).push(w);
+        });
+        Object.values(rows).forEach(words => {
+            words.sort((a, b) => a.bbox.x0 - b.bbox.x0);
+            for (let i = 0; i < words.length; i++) {
+                for (let len = 2; len <= 7 && i + len <= words.length; len++) {
+                    const chunk = words.slice(i, i + len);
+                    if (chunk[len - 1].bbox.x0 - chunk[0].bbox.x1 > 120) continue;
+                    const combined = chunk.map(w => w.text).join(' ');
+                    const x0 = chunk[0].bbox.x0, y0 = Math.min(...chunk.map(w => w.bbox.y0));
+                    const x1 = chunk[len - 1].bbox.x1, y1 = Math.max(...chunk.map(w => w.bbox.y1));
+                    tryAdd(combined, { x0, y0, x1, y1 }, chunk.reduce((s, w) => s + (w.confidence || 0), 0) / len);
+                }
+            }
+        });
+    }
+
+    return { found, allTexts };
+}
+
+function preprocessMapForOcr(sourceCanvas, mode) {
+    const canvas = document.createElement('canvas');
+    canvas.width = sourceCanvas.width;
+    canvas.height = sourceCanvas.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(sourceCanvas, 0, 0);
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = imgData.data;
+
+    for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        let v = 255;
+
+        if (mode === 'dark') {
+            // In-game Rust maps: dark brown/black labels on terrain
+            v = lum < 95 ? 0 : 255;
+        } else if (mode === 'darkWide') {
+            v = lum < 130 ? 0 : 255;
+        } else if (mode === 'brown') {
+            const isLabel = lum < 115 && r < g + 40 && r < 180;
+            v = isLabel ? 0 : 255;
+        } else if (mode === 'light') {
+            // rustmaps.com style: white/light labels
+            v = lum > 150 ? 0 : 255;
+        }
+
+        d[i] = d[i + 1] = d[i + 2] = v;
+        d[i + 3] = 255;
+    }
+    ctx.putImageData(imgData, 0, 0);
+    return canvas;
+}
+
+async function autoDetectMonuments(isNewUpload = false) {
+    if (!mapImage || ocrScanning) return;
+
+    if (typeof Tesseract === 'undefined') {
+        setScanStatus('OCR library failed to load — check your internet connection and refresh.', 'error');
+        return;
+    }
+
+    ocrScanning = true;
+    document.getElementById('rescan-btn').disabled = true;
+    document.getElementById('analyze-btn').disabled = true;
+    mapMarkers = isNewUpload ? [] : mapMarkers.filter(m => !m.auto);
+
+    setScanStatus('Scanning map… (first time loads OCR, ~30 sec)');
+
+    const debugTexts = [];
+    let found = 0;
+    const foundNames = [];
+    const seen = new Set();
+
+    try {
+        // Scale UP for better OCR on stylized Rust font
+        const minDim = 3200;
+        const scale = Math.max(1, minDim / Math.max(mapImage.width, mapImage.height));
+        const ocrW = Math.round(mapImage.width * scale);
+        const ocrH = Math.round(mapImage.height * scale);
+        const invScale = 1 / scale;
+
+        const baseCanvas = document.createElement('canvas');
+        baseCanvas.width = ocrW;
+        baseCanvas.height = ocrH;
+        baseCanvas.getContext('2d').drawImage(mapImage, 0, 0, ocrW, ocrH);
+
+        const labelCanvas = buildLabelMaskCanvas(baseCanvas);
+
+        if (!ocrWorker) {
+            ocrWorker = await Tesseract.createWorker('eng', 1, {
+                workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+                langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+                corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core-simd-lstm.wasm.js',
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        setScanStatus(`Reading labels… ${Math.round((m.progress || 0) * 100)}%`);
+                    }
+                }
+            });
+        }
+
+        // --- Method 1: OCR each detected text region individually ---
+        const regions = detectLabelRegions(labelCanvas);
+        setScanStatus(`Found ${regions.length} text regions — reading names…`);
+
+        for (let i = 0; i < regions.length; i++) {
+            if (i % 4 === 0) setScanStatus(`Reading label ${i + 1} / ${regions.length}…`);
+            const region = regions[i];
+            const labelCrop = cropRegion(labelCanvas, region, 4);
+            const colorCrop = cropRegion(preprocessMapForOcr(baseCanvas, 'darkWide'), region, 4);
+            try {
+                for (const crop of [labelCrop, colorCrop]) {
+                    const data = await ocrCanvas(crop, '7', true);
+                    const result = collectOcrMatches(data, invScale, foundNames, seen);
+                    found += result.found;
+                    debugTexts.push(...result.allTexts);
+                    if (data.text?.trim()) {
+                        found += tryMatchRegionText(data.text, region, invScale, foundNames, seen);
+                    }
+                }
+            } catch (_) { /* skip bad crop */ }
+            if (found >= 18) break;
+        }
+
+        // --- Method 2: Full-map tile scan (backup) ---
+        if (found < 5) {
+            setScanStatus('Running full-map scan…');
+            const tiles = 4;
+            const tw = Math.floor(ocrW / tiles), th = Math.floor(ocrH / tiles);
+            for (let ty = 0; ty < tiles; ty++) {
+                for (let tx = 0; tx < tiles; tx++) {
+                    const crop = document.createElement('canvas');
+                    crop.width = tw; crop.height = th;
+                    const cctx = crop.getContext('2d');
+                    cctx.fillStyle = '#fff';
+                    cctx.fillRect(0, 0, tw, th);
+                    cctx.drawImage(labelCanvas, tx * tw, ty * th, tw, th, 0, 0, tw, th);
+                    try {
+                        const data = await ocrCanvas(crop, '6');
+                        const ox = tx * tw, oy = ty * th;
+                        const shifted = {
+                            lines: (data.lines || []).map(l => ({
+                                ...l, bbox: { x0: l.bbox.x0 + ox, y0: l.bbox.y0 + oy, x1: l.bbox.x1 + ox, y1: l.bbox.y1 + oy }
+                            })),
+                            words: (data.words || []).map(w => ({
+                                ...w, bbox: { x0: w.bbox.x0 + ox, y0: w.bbox.y0 + oy, x1: w.bbox.x1 + ox, y1: w.bbox.y1 + oy }
+                            })),
+                        };
+                        const result = collectOcrMatches(shifted, invScale, foundNames, seen);
+                        found += result.found;
+                        debugTexts.push(...result.allTexts);
+                    } catch (_) { /* skip tile */ }
+                }
+            }
+        }
+
+        // --- Safe zone icons: only Bandit / Outpost, only if OCR didn't find them ---
+        const hasBandit = mapMarkers.some(m => m.auto && m.type === 'bandit');
+        const hasOutpost = mapMarkers.some(m => m.auto && m.type === 'outpost');
+        if (!hasBandit || !hasOutpost) {
+            setScanStatus('Checking for Bandit Camp / Outpost shop icons…');
+            detectGreenIconClusters(baseCanvas, invScale);
+        }
+
+        found = mapMarkers.filter(m => m.auto).length;
+        foundNames.length = 0;
+        mapMarkers.filter(m => m.auto).forEach(m => foundNames.push(MONUMENT_TYPES[m.type]?.name || m.type));
+
+        drawMap();
+
+        if (found > 0) {
+            const unique = [...new Set(foundNames)];
+            setScanStatus(`Auto-detected ${found} monument${found > 1 ? 's' : ''}: ${unique.join(', ')}`, 'done');
+            document.getElementById('spot-results').innerHTML =
+                `<p class="hint" style="color:var(--accent-green)">✓ Found ${found} monuments. Hit <strong>Find Best Spots</strong> or adjust markers manually.</p>`;
+        } else {
+            const sample = debugTexts.filter(t => t.length > 2).slice(0, 8).join(', ') || 'none';
+            setScanStatus('Could not read monument names on this map.', 'error');
+            document.getElementById('spot-results').innerHTML =
+                `<p class="hint">OCR couldn't match monument names (read: "${sample}").<br><br>
+                <strong>Try this:</strong> Use a screenshot from <a href="https://rustmaps.com" target="_blank" style="color:var(--rust-orange)">rustmaps.com</a> — those maps have cleaner text.<br><br>
+                Or click the map to place markers manually — pick a monument from the dropdown, then click where it is.</p>`;
+        }
+    } catch (err) {
+        console.error('Monument scan error:', err);
+        setScanStatus('Scan error: ' + (err.message || 'unknown') + ' — place markers manually.', 'error');
+        document.getElementById('spot-results').innerHTML =
+            '<p class="hint">Scan failed. Make sure you\'re online (OCR loads from the internet), refresh the page, and try again — or mark monuments by clicking the map.</p>';
+    } finally {
+        ocrScanning = false;
+        document.getElementById('rescan-btn').disabled = !mapImage;
+        document.getElementById('analyze-btn').disabled = !mapImage;
+    }
+}
+
+function matchMonumentType(text) {
+    const norm = normalizeOcrText(text);
+    if (norm.length < 3) return null;
+
+    for (const entry of MONUMENT_ALIASES) {
+        for (const pattern of entry.patterns) {
+            if (norm.includes(pattern)) return entry.type;
+        }
+    }
+
+    for (const entry of MONUMENT_ALIASES) {
+        const primary = entry.patterns[0];
+        if (primary.length >= 8 && levenshtein(norm, primary) <= 3) return entry.type;
+        if (norm.length >= 8 && primary.length >= 8 && levenshtein(norm, primary) <= Math.ceil(primary.length * 0.15)) return entry.type;
+    }
+
+    const words = norm.split(' ');
+    for (const word of words) {
+        if (word.length < 4) continue;
+        for (const entry of MONUMENT_ALIASES) {
+            for (const pattern of entry.patterns) {
+                if (pattern.includes(' ') && word.length >= 5 && levenshtein(word, pattern.split(' ')[0]) <= 2) {
+                    // partial word match handled below via row combine
+                }
+                if (!pattern.includes(' ') && levenshtein(word, pattern) <= 2) return entry.type;
+            }
+        }
+    }
+
+    // Last resort: strong single-word monument matches
+    const singles = [
+        ['outpost', 'outpost'], ['bandit', 'bandit'], ['launch', 'launch'],
+        ['excavator', 'excavator'], ['supermarket', 'supermarket'], ['airfield', 'airfield'],
+        ['arctic', 'arctic'], ['lighthouse', 'lighthouse'], ['harbor', 'harbor'],
+    ];
+    for (const [type, kw] of singles) {
+        if (words.some(w => w.length >= 4 && levenshtein(w, kw) <= 1)) return type;
+    }
+    return null;
+}
+
+function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            dp[i][j] = Math.min(
+                dp[i-1][j] + 1,
+                dp[i][j-1] + 1,
+                dp[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1)
+            );
+        }
+    }
+    return dp[m][n];
+}
+
+function addAutoMarker(type, x, y, label, confidence) {
+    const minDist = mapCanvas.width * 0.035;
+    const existing = mapMarkers.find(m =>
+        m.type === type && Math.hypot(m.x - x, m.y - y) < minDist
+    );
+    if (existing) {
+        if ((confidence || 0) > (existing.confidence || 0)) {
+            existing.x = x;
+            existing.y = y;
+            existing.confidence = confidence;
+        }
+        return false;
+    }
+    mapMarkers.push({ x, y, type, auto: true, label, confidence: confidence || 0 });
+    return true;
+}
+
+function resizeMapCanvas() {
+    const maxW = document.getElementById('map-viewport').clientWidth - 4;
+    const maxH = window.innerHeight - 180;
+    const scale = Math.min(maxW / mapImage.width, maxH / mapImage.height, 1);
+    mapCanvas.width = mapImage.width;
+    mapCanvas.height = mapImage.height;
+    mapCanvas.style.width = (mapImage.width * scale) + 'px';
+    mapCanvas.style.height = (mapImage.height * scale) + 'px';
+}
+
+function cacheMapPixels() {
+    mapCtx.drawImage(mapImage, 0, 0);
+    mapPixelData = mapCtx.getImageData(0, 0, mapCanvas.width, mapCanvas.height);
+}
+
+function setMapMode(mode) {
+    mapMode = mode;
+    document.getElementById('mode-place').classList.toggle('active', mode === 'place');
+    document.getElementById('mode-erase').classList.toggle('active', mode === 'erase');
+}
+
+mapCanvas.addEventListener('click', e => {
+    if (!mapImage) return;
+    const rect = mapCanvas.getBoundingClientRect();
+    const scaleX = mapCanvas.width / rect.width;
+    const scaleY = mapCanvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+
+    if (mapMode === 'erase') {
+        const idx = mapMarkers.findIndex(m => Math.hypot(m.x - x, m.y - y) < 20);
+        if (idx >= 0) mapMarkers.splice(idx, 1);
+    } else {
+        const type = quickMarkType || document.getElementById('monument-select').value;
+        mapMarkers.push({ x, y, type });
+        quickMarkType = null;
+        document.querySelectorAll('#quick-mark-btns .preset-btn').forEach(btn => btn.style.borderColor = '');
+    }
+    mapSpots = [];
+    drawMap();
+    document.getElementById('spot-results').innerHTML = '<p class="hint">Markers updated — click Find Best Spots to re-analyze.</p>';
+});
+
+function isWaterAt(x, y) {
+    if (!mapPixelData) return false;
+    const px = Math.floor(x), py = Math.floor(y);
+    if (px < 0 || py < 0 || px >= mapCanvas.width || py >= mapCanvas.height) return true;
+    const i = (py * mapCanvas.width + px) * 4;
+    const r = mapPixelData.data[i], g = mapPixelData.data[i+1], b = mapPixelData.data[i+2];
+    // Detect water: strong blue, low red (works on most Rust map screenshots)
+    return b > 80 && b > r * 1.3 && b > g * 1.05 && r < 120;
+}
+
+function sampleAreaWater(x, y, radius) {
+    let water = 0, total = 0;
+    for (let dy = -radius; dy <= radius; dy += 3) {
+        for (let dx = -radius; dx <= radius; dx += 3) {
+            total++;
+            if (isWaterAt(x + dx, y + dy)) water++;
+        }
+    }
+    return water / total;
+}
+
+function distNorm(x1, y1, x2, y2) {
+    return Math.hypot(x1 - x2, y1 - y2) / Math.max(mapCanvas.width, mapCanvas.height);
+}
+
+function analyzeMapSpots() {
+    if (!mapImage || !mapPixelData) return;
+
+    const playstyle = document.getElementById('playstyle-select').value;
+    const gridSize = 24;
+    const candidates = [];
+
+    for (let gy = 1; gy < gridSize - 1; gy++) {
+        for (let gx = 1; gx < gridSize - 1; gx++) {
+            const x = (gx + 0.5) * mapCanvas.width / gridSize;
+            const y = (gy + 0.5) * mapCanvas.height / gridSize;
+
+            const waterPct = sampleAreaWater(x, y, 8);
+            if (waterPct > 0.35) continue;
+
+            let score = 50;
+            const pros = [], cons = [];
+
+            const centerDist = Math.hypot(gx - gridSize/2, gy - gridSize/2) / (gridSize / 2);
+            const edgeDist = Math.min(gx, gy, gridSize - 1 - gx, gridSize - 1 - gy) / (gridSize / 2);
+
+            // Playstyle scoring
+            if (playstyle === 'hidden') {
+                score += edgeDist * 35;
+                if (edgeDist > 0.5) pros.push('Tucked away from map center — less foot traffic');
+                else cons.push('Too central for a low-profile base');
+            } else if (playstyle === 'pvp') {
+                score += (1 - centerDist) * 25;
+                if (centerDist < 0.5) pros.push('Central location — quick access to action');
+            } else if (playstyle === 'farm') {
+                score += edgeDist * 15;
+                if (waterPct < 0.05) pros.push('Dry land — good for building and farming');
+            } else if (playstyle === 'clan') {
+                score += edgeDist * 20;
+                if (edgeDist > 0.35) pros.push('Edge position — fewer directions to defend');
+            }
+
+            if (waterPct > 0.1 && waterPct <= 0.35) {
+                score -= waterPct * 40;
+                cons.push('Near coastline — watch for water-side raids');
+            } else if (waterPct < 0.05) {
+                pros.push('Solid ground, not on water');
+            }
+
+            // Monument scoring
+            let nearSmall = false, nearSafe = false;
+            mapMarkers.forEach(m => {
+                const info = MONUMENT_TYPES[m.type];
+                const d = distNorm(x, y, m.x, m.y);
+
+                if (info.cat === 'avoid') {
+                    if (d < info.sweetMax) { score -= 80; cons.push(`Too close to marked avoid zone`); }
+                    return;
+                }
+
+                if (info.cat === 'large') {
+                    if (d < info.minDist) {
+                        score -= 45;
+                        cons.push(`Too close to ${info.name} — heavy PvP traffic`);
+                    } else if (d >= info.sweetMin && d <= info.sweetMax) {
+                        score += 22;
+                        pros.push(`Good distance from ${info.name} for loot runs`);
+                    } else if (d > info.sweetMax) {
+                        score -= 8;
+                    }
+                }
+
+                if (info.cat === 'medium') {
+                    if (d < info.minDist) {
+                        score -= 25;
+                        cons.push(`Very close to ${info.name} — contested area`);
+                    } else if (d >= info.sweetMin && d <= info.sweetMax) {
+                        score += 15;
+                        pros.push(`Reasonable distance from ${info.name}`);
+                    }
+                }
+
+                if (info.cat === 'small') {
+                    if (d >= info.sweetMin && d <= info.sweetMax) {
+                        score += 18;
+                        nearSmall = true;
+                        pros.push(`Close to ${info.name} for quick component runs`);
+                    }
+                }
+
+                if (info.cat === 'safe') {
+                    if (d >= info.sweetMin && d <= info.sweetMax) {
+                        score += 20;
+                        nearSafe = true;
+                        pros.push(`Near ${info.name} — easy trading and recycling`);
+                    }
+                }
+            });
+
+            if (mapMarkers.length === 0) {
+                score += (1 - centerDist) * 10;
+                pros.push('No monuments marked — showing general map position score');
+                cons.push('Mark monuments on your map for much better recommendations');
+            }
+
+            if (playstyle === 'farm' && nearSmall) score += 10;
+            if (playstyle === 'pvp' && !cons.some(c => c.includes('Too close'))) score += 5;
+
+            // Spread bonus — don't recommend spots too close to each other (handled later)
+            candidates.push({ x, y, gx, gy, score: Math.round(score), pros, cons });
+        }
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+
+    // Pick top spots with minimum separation
+    mapSpots = [];
+    const minSep = mapCanvas.width / 8;
+    for (const c of candidates) {
+        if (mapSpots.length >= 5) break;
+        const tooClose = mapSpots.some(s => Math.hypot(s.x - c.x, s.y - c.y) < minSep);
+        if (!tooClose) mapSpots.push(c);
+    }
+
+    renderSpotResults();
+    drawMap();
+}
+
+function renderSpotResults() {
+    const el = document.getElementById('spot-results');
+    if (mapSpots.length === 0) {
+        el.innerHTML = '<p class="hint">No valid spots found — try marking fewer avoid zones or use a clearer map image.</p>';
+        return;
+    }
+
+    el.innerHTML = '';
+    mapSpots.forEach((spot, i) => {
+        const card = document.createElement('div');
+        card.className = 'spot-card';
+        card.innerHTML = `
+            <span class="spot-rank">#${i + 1} Recommended Spot</span>
+            <span class="spot-score">Score: ${spot.score}</span>
+            <ul>
+                ${spot.pros.slice(0, 3).map(p => `<li class="positive">✓ ${p}</li>`).join('')}
+                ${spot.cons.slice(0, 2).map(c => `<li class="negative">✗ ${c}</li>`).join('')}
+            </ul>`;
+        card.addEventListener('click', () => {
+            highlightedSpot = i;
+            document.querySelectorAll('.spot-card').forEach((c, j) => c.classList.toggle('highlight', j === i));
+            drawMap();
+        });
+        el.appendChild(card);
+    });
+}
+
+function drawMap() {
+    if (!mapImage) return;
+    mapCtx.drawImage(mapImage, 0, 0);
+
+    // Draw markers
+    mapMarkers.forEach(m => {
+        const info = MONUMENT_TYPES[m.type];
+        if (!info) return;
+        mapCtx.beginPath();
+        mapCtx.arc(m.x, m.y, m.auto ? 9 : 10, 0, Math.PI * 2);
+        mapCtx.fillStyle = info.color;
+        mapCtx.fill();
+        mapCtx.strokeStyle = m.auto ? '#aaf' : '#fff';
+        mapCtx.lineWidth = m.auto ? 2.5 : 2;
+        mapCtx.stroke();
+        if (m.auto) {
+            mapCtx.fillStyle = '#aaf';
+            mapCtx.font = 'bold 8px sans-serif';
+            mapCtx.textAlign = 'center';
+            mapCtx.fillText('auto', m.x, m.y + 22);
+        }
+        mapCtx.fillStyle = '#fff';
+        mapCtx.font = 'bold 9px sans-serif';
+        mapCtx.textAlign = 'center';
+        mapCtx.fillText(info.name.split(' ')[0], m.x, m.y - 14);
+    });
+
+    // Draw recommended spots
+    mapSpots.forEach((spot, i) => {
+        const isHi = i === highlightedSpot;
+        mapCtx.beginPath();
+        mapCtx.arc(spot.x, spot.y, isHi ? 16 : 12, 0, Math.PI * 2);
+        mapCtx.fillStyle = isHi ? 'rgba(74,255,170,0.85)' : 'rgba(68,170,255,0.75)';
+        mapCtx.fill();
+        mapCtx.strokeStyle = '#fff';
+        mapCtx.lineWidth = isHi ? 3 : 2;
+        mapCtx.stroke();
+        mapCtx.fillStyle = '#000';
+        mapCtx.font = `bold ${isHi ? 14 : 11}px sans-serif`;
+        mapCtx.textAlign = 'center';
+        mapCtx.textBaseline = 'middle';
+        mapCtx.fillText(i + 1, spot.x, spot.y);
+    });
+}
+
+function clearMapData() {
+    mapImage = null;
+    mapMarkers = [];
+    mapSpots = [];
+    mapPixelData = null;
+    mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+    mapCanvas.style.display = 'none';
+    document.getElementById('map-placeholder').style.display = 'block';
+    document.getElementById('map-viewport').classList.add('empty');
+    document.getElementById('map-upload').value = '';
+    document.getElementById('analyze-btn').disabled = true;
+    document.getElementById('rescan-btn').disabled = true;
+    setScanStatus('Upload a map — monument names like "Airfield" and "Water Treatment" are auto-detected.');
+    document.getElementById('spot-results').innerHTML = '<p class="hint">Upload a map and analyze to see results.</p>';
+}
+
+window.addEventListener('resize', () => {
+    if (mapImage) { resizeMapCanvas(); drawMap(); }
+});
+
+// ============================================================
+// BOOT
+// ============================================================
+renderRaidTargets();
+renderResourceTargets();
+buildGridSystem();
+initQuickMarkButtons();
+</script>
+</body>
+</html>
